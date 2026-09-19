@@ -1,228 +1,280 @@
-(function() {
+(function () {
+  'use strict';
+
+  var scriptUrl = (document.currentScript && document.currentScript.src) || '';
+  var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
+  try {
+    if (scriptUrl) appUrl = new URL('./', scriptUrl).href.split('?')[0].split('#')[0];
+  } catch (_) {}
+
   var host = location.hostname;
   var items = [];
   var site = '';
 
-  // ── 쿠팡 ──────────────────────────────────────────
+  function addItem(data) {
+    if (!data || !String(data.name || '').trim()) return;
+    var qty = parseInt(String(data.qty || 1).replace(/,/g, ''), 10);
+    var price = parseInt(String(data.price || 0).replace(/,/g, ''), 10);
+    items.push({
+      name: String(data.name || '').trim(),
+      spec: String(data.spec || '').trim(),
+      unit: String(data.unit || '개').trim() || '개',
+      qty: Number.isFinite(qty) && qty > 0 ? qty : 1,
+      price: Number.isFinite(price) && price >= 0 ? price : 0,
+      selected: true,
+      site: site,
+      needsReview: Boolean(data.needsReview)
+    });
+  }
+
+  function eachChecked(callback) {
+    document.querySelectorAll('input[type=checkbox]:checked').forEach(function (cb) {
+      try { callback(cb); } catch (_) {}
+    });
+  }
+
   function parseCoupang() {
     site = '쿠팡';
     var seen = {};
-    document.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
-      var container = cb.parentElement.parentElement.parentElement;
-      var txt = container.innerText;
+
+    eachChecked(function (cb) {
+      var container = cb.parentElement && cb.parentElement.parentElement && cb.parentElement.parentElement.parentElement;
+      if (!container) return;
+      var txt = container.innerText || '';
       var allP = txt.match(/([\d,]+)\s*원/g);
       if (!allP) return;
+
       var nm = txt.match(/^([\s\S]+?)옵션:/);
-      var name = nm ? nm[1].trim() : (txt.match(/^([\s\S]+?)삭제/) ? txt.match(/^([\s\S]+?)삭제/)[1].trim() : '');
+      var fallback = txt.match(/^([\s\S]+?)삭제/);
+      var name = nm ? nm[1].trim() : (fallback ? fallback[1].trim() : '');
       if (!name) return;
+
       var sm = txt.match(/옵션:\s*([^\n]+)/);
-      var sr = sm ? sm[1].trim() : '';
+      var rawSpec = sm ? sm[1].trim() : '';
       var discM = txt.match(/\d+%\s*([\d,]+)\s*원/);
-      var price = discM ? parseInt(discM[1].replace(/,/g, '')) : parseInt(allP[0].replace(/[^\d]/g, ''));
+      var price = discM ? parseInt(discM[1].replace(/,/g, ''), 10) : parseInt(allP[0].replace(/[^\d]/g, ''), 10);
       if (!price) return;
-      var spec = sr.replace(/,?\s*\d+개$/, '').trim();
-      var seenKey = name + '|' + spec;
-      if (seen[seenKey]) return;
-      seen[seenKey] = true;
-      items.push({ name: name, spec: spec, unit: '개', qty: 1, price: price, selected: true, site: site });
+
+      var spec = rawSpec.replace(/,?\s*\d+개$/, '').trim();
+      var key = name + '|' + spec;
+      if (seen[key]) return;
+      seen[key] = true;
+
+      addItem({ name: name, spec: spec, unit: '개', qty: 1, price: price });
     });
-    // 배송비
-    var shipEl = Array.from(document.querySelectorAll('*')).find(function(el) {
-      return el.children.length < 3 && el.innerText && el.innerText.trim().startsWith('총 배송비') && el.innerText.includes('원') && el.innerText.length < 30;
+
+    var shipEl = Array.from(document.querySelectorAll('*')).find(function (el) {
+      var t = el.innerText || '';
+      return el.children.length < 3 && t.trim().startsWith('총 배송비') && t.includes('원') && t.length < 40;
     });
     if (shipEl) {
       var sm2 = shipEl.innerText.match(/([\d,]+)\s*원/);
-      var sp = sm2 ? parseInt(sm2[1].replace(/,/g, '')) : 0;
-      if (sp > 0) items.push({ name: '배송비', spec: '', unit: '식', qty: 1, price: sp, selected: true, site: site });
+      var shipping = sm2 ? parseInt(sm2[1].replace(/,/g, ''), 10) : 0;
+      if (shipping > 0) addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
     }
   }
 
-  // ── G마켓 ──────────────────────────────────────────
   function parseGmarket() {
     site = 'G마켓';
-    document.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
-      if (cb.parentElement.parentElement.innerText.length > 0) return;
-      var c = cb.parentElement.parentElement.parentElement;
-      var t = c.innerText;
+
+    eachChecked(function (cb) {
+      var p2 = cb.parentElement && cb.parentElement.parentElement;
+      if (!p2 || (p2.innerText || '').length > 0) return;
+      var c = p2.parentElement;
+      if (!c) return;
+      var t = c.innerText || '';
       if (!t.includes('상품명:')) return;
+
       var nm = t.match(/상품명:\n(.+?)\n/);
       var name = nm ? nm[1].trim() : '';
       if (!name) return;
-      var blocks = t.split('구매할 상품 상세 정보');
-      blocks.forEach(function(block) {
+
+      t.split('구매할 상품 상세 정보').forEach(function (block) {
         if (!block.includes('상품 금액 :')) return;
         var op = block.match(/옵션선택 정보\n(.+?)\n/);
-        var spec = op ? op[1].trim() : '';
         var qm = block.match(/상품 수\s+(\d+)\s+증가/);
-        var qty = qm ? parseInt(qm[1]) : 1;
         var pm = block.match(/상품 금액 :\n([\d,]+)원/);
-        var price = pm ? parseInt(pm[1].replace(/,/g, '')) : 0;
+        var price = pm ? parseInt(pm[1].replace(/,/g, ''), 10) : 0;
         if (!price) return;
-        items.push({ name: name, spec: spec, unit: '개', qty: qty, price: price, selected: true, site: site });
+        addItem({
+          name: name,
+          spec: op ? op[1].trim() : '',
+          unit: '개',
+          qty: qm ? parseInt(qm[1], 10) : 1,
+          price: price
+        });
       });
     });
-    // 배송비
-    var shipLi = Array.from(document.querySelectorAll('li')).find(function(el) {
-      var t = el.innerText;
-      return t.startsWith('배송비\n') && t.includes('원') && !t.includes('무료') && t.length < 15;
+
+    var shipLi = Array.from(document.querySelectorAll('li')).find(function (el) {
+      var t = el.innerText || '';
+      return t.startsWith('배송비\n') && t.includes('원') && !t.includes('무료') && t.length < 20;
     });
     if (shipLi) {
       var sm = shipLi.innerText.match(/([\d,]+)원/);
-      var sp = sm ? parseInt(sm[1].replace(/,/g, '')) : 0;
-      if (sp > 0) items.push({ name: '배송비', spec: '', unit: '식', qty: 1, price: sp, selected: true, site: site });
+      var shipping = sm ? parseInt(sm[1].replace(/,/g, ''), 10) : 0;
+      if (shipping > 0) addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
     }
   }
 
-  // ── 11번가 ──────────────────────────────────────────
   function parse11st() {
     site = '11번가';
     var bundleSeen = {};
-    document.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
-      var c = cb.parentElement.parentElement;
-      var t = c.innerText;
+
+    eachChecked(function (cb) {
+      var c = cb.parentElement && cb.parentElement.parentElement;
+      if (!c) return;
+      var t = c.innerText || '';
       if (t.length < 100) return;
-      var name = t.split('\n')[0].trim();
+
+      var name = (t.split('\n')[0] || '').trim();
       if (!name) return;
+
       var op = t.match(/옵션\n(.+?)\n/);
-      var spec = op ? op[1].trim() : '';
       var qm = t.match(/(\d+)쿠폰변경/);
-      var qty = qm ? parseInt(qm[1]) : 1;
+      var qty = qm ? parseInt(qm[1], 10) : 1;
       var pm = t.match(/할인모음가\n([\d,]+)원/) || t.match(/판매가\n([\d,]+)원/);
-      var price = pm ? Math.floor(parseInt(pm[1].replace(/,/g, '')) / qty) : 0;
+      var totalOrPrice = pm ? parseInt(pm[1].replace(/,/g, ''), 10) : 0;
+      var price = totalOrPrice ? Math.floor(totalOrPrice / qty) : 0;
       if (!price) return;
-      items.push({ name: name, spec: spec, unit: '개', qty: qty, price: price, selected: true, site: site });
-      // 배송비
-      var grp = c.parentElement.parentElement.parentElement.parentElement;
-      var hasBungle = grp.innerText.includes('묶음');
-      if (hasBungle) {
-        var grpId = grp.className + '|' + grp.id;
-        if (!bundleSeen[grpId]) {
-          bundleSeen[grpId] = true;
-          var bm = grp.innerText.match(/묶음 배송비 ([\d,]+)원/);
-          var ship = bm ? parseInt(bm[1].replace(/,/g, '')) : 0;
-          if (ship > 0) items.push({ name: '배송비(묶음)', spec: '', unit: '식', qty: 1, price: ship, selected: true, site: site });
-        }
+
+      addItem({ name: name, spec: op ? op[1].trim() : '', unit: '개', qty: qty, price: price });
+
+      var grp = c.parentElement && c.parentElement.parentElement && c.parentElement.parentElement.parentElement;
+      if (!grp) return;
+      var gt = grp.innerText || '';
+
+      if (gt.includes('묶음')) {
+        var groupKey = (grp.className || '') + '|' + (grp.id || '') + '|' + gt.slice(0, 80);
+        if (bundleSeen[groupKey]) return;
+        bundleSeen[groupKey] = true;
+
+        var bm = gt.match(/묶음 배송비 ([\d,]+)원/);
+        var bundledShipping = bm ? parseInt(bm[1].replace(/,/g, ''), 10) : 0;
+        if (bundledShipping > 0) addItem({ name: '배송비(묶음)', unit: '식', qty: 1, price: bundledShipping });
       } else {
         var ind = t.match(/배송비\n\n도움말\n배송비\n\n([\d,]+)원/);
-        var ship2 = ind ? parseInt(ind[1].replace(/,/g, '')) : 0;
-        if (ship2 > 0) items.push({ name: '배송비', spec: '', unit: '식', qty: 1, price: ship2, selected: true, site: site });
+        var shipping = ind ? parseInt(ind[1].replace(/,/g, ''), 10) : 0;
+        if (shipping > 0) addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
       }
     });
   }
 
-  // ── 이마트몰(SSG) ──────────────────────────────────────────
   function parseEmart() {
     site = '이마트몰';
     var NL = String.fromCharCode(10);
-    var DEL = '상품 삭제';
-    var PRICE = '판매가격';
-    var QTY = '현재수량';
-    var SEL = '상품선택';
-    document.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
-      var c2 = cb.parentElement.parentElement;
-      if (c2.innerText.trim() !== SEL) return;
-      var t = c2.parentElement.innerText;
-      var delIdx = t.indexOf(DEL);
-      if (delIdx < 0) return;
-      var afterDel = t.substring(delIdx + DEL.length);
-      var delLines = afterDel.split(NL).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
-      var name = delLines[0] || '';
-      if (!name) return;
-      var priceIdx = t.indexOf(PRICE);
-      if (priceIdx < 0) return;
-      var afterPrice = t.substring(priceIdx + PRICE.length);
-      var priceLines = afterPrice.split(NL).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
-      var totalPrice = parseInt(priceLines[0].replace(/,/g, '')) || 0;
-      if (!totalPrice) return;
-      var qtyInput = c2.parentElement.querySelector('input[type=number]');
-      var qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
-      var price = Math.floor(totalPrice / qty);
-      items.push({ name: name, spec: '', unit: '개', qty: qty, price: price, selected: true, site: site });
+
+    eachChecked(function (cb) {
+      var p2 = cb.parentElement && cb.parentElement.parentElement;
+      if (!p2 || (p2.innerText || '').trim() !== '상품선택') return;
+      var c3 = p2.parentElement;
+      if (!c3) return;
+
+      var t = c3.innerText || '';
+      var delIdx = t.indexOf('상품 삭제');
+      var priceIdx = t.indexOf('판매가격');
+      if (delIdx < 0 || priceIdx < 0) return;
+
+      var nameLines = t.substring(delIdx + '상품 삭제'.length).split(NL).map(function (s) { return s.trim(); }).filter(Boolean);
+      var priceLines = t.substring(priceIdx + '판매가격'.length).split(NL).map(function (s) { return s.trim(); }).filter(Boolean);
+      var name = nameLines[0] || '';
+      var totalPrice = parseInt(String(priceLines[0] || '').replace(/,/g, ''), 10) || 0;
+      if (!name || !totalPrice) return;
+
+      var qtyInput = c3.querySelector('input[type=number]');
+      var qty = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+      addItem({ name: name, unit: '개', qty: qty, price: Math.floor(totalPrice / qty) });
     });
-    // 총 배송비
-    var shipDl = Array.from(document.querySelectorAll('dl')).find(function(el) {
-      return el.innerText.startsWith('배송비') && el.innerText.includes('+');
+
+    var shipDl = Array.from(document.querySelectorAll('dl')).find(function (el) {
+      var t = el.innerText || '';
+      return t.startsWith('배송비') && t.includes('+');
     });
     if (shipDl) {
-      var dlTxt = shipDl.innerText;
+      var dlTxt = shipDl.innerText || '';
       var plusIdx = dlTxt.indexOf('+');
-      if (plusIdx > -1) {
-        var afterPlus = dlTxt.substring(plusIdx + 1);
-        var wonIdx = afterPlus.indexOf('원');
-        var shipPrice = wonIdx > -1 ? parseInt(afterPlus.substring(0, wonIdx).replace(/,/g, '')) : 0;
-        if (shipPrice > 0) items.push({ name: '배송비', spec: '', unit: '식', qty: 1, price: shipPrice, selected: true, site: site });
-      }
+      var afterPlus = plusIdx > -1 ? dlTxt.substring(plusIdx + 1) : '';
+      var wonIdx = afterPlus.indexOf('원');
+      var shipping = wonIdx > -1 ? parseInt(afterPlus.substring(0, wonIdx).replace(/,/g, ''), 10) : 0;
+      if (shipping > 0) addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
     }
   }
 
-  // ── S2B ──────────────────────────────────────────
   function parseS2B() {
     site = 'S2B';
     var NL = String.fromCharCode(10);
     var TAB = String.fromCharCode(9);
-    var SKIP = ['S2B', '바이', '(주)', '모노트', '지오', '에듀', '비즈', '안나', '별하랑', '지영'];
-    function isSkip(s) { for (var k = 0; k < SKIP.length; k++) { if (s.includes(SKIP[k])) return true; } return false; }
-    document.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
-      var c2 = cb.parentElement.parentElement;
-      var t = c2.innerText;
-      var lines = t.split(NL).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
-      var name = ''; var spec = '';
-      for (var i = 0; i < lines.length; i++) {
-        var l = lines[i].split(TAB)[0].trim();
-        if (l.length < 2) continue;
-        if (isSkip(l)) continue;
-        if (l.charAt(4) === '-' && l.charAt(7) === '-') continue;
-        if (l.replace(/[0-9,]/g, '').length === 0) continue;
-        if (!name) { name = l; } else if (!spec) { spec = l; break; }
+    var skip = ['S2B', '바이', '(주)', '모노트', '지오', '에듀', '비즈', '안나', '별하랑', '지영'];
+
+    function shouldSkip(s) {
+      return skip.some(function (word) { return s.includes(word); });
+    }
+
+    eachChecked(function (cb) {
+      var c2 = cb.parentElement && cb.parentElement.parentElement;
+      if (!c2) return;
+
+      var t = c2.innerText || '';
+      var lines = t.split(NL).map(function (s) { return s.trim(); }).filter(Boolean);
+      var name = '';
+      var spec = '';
+
+      for (var i = 0; i < lines.length; i += 1) {
+        var line = lines[i].split(TAB)[0].trim();
+        if (line.length < 2 || shouldSkip(line)) continue;
+        if (line.charAt(4) === '-' && line.charAt(7) === '-') continue;
+        if (line.replace(/[0-9,]/g, '').length === 0) continue;
+        if (!name) name = line;
+        else if (!spec) { spec = line; break; }
       }
       if (!name) return;
-      var tabs = t.split(TAB).map(function(s) { return s.trim(); });
-      var nums = [];
-      for (var j = 0; j < tabs.length; j++) {
-        var v = tabs[j].replace(/,/g, '');
-        if (v.length >= 3 && v.replace(/[0-9]/g, '').length === 0) nums.push(parseInt(v));
-      }
+
+      var nums = t.split(TAB).map(function (s) { return s.trim(); }).map(function (s) {
+        var v = s.replace(/,/g, '');
+        return v.length >= 3 && v.replace(/[0-9]/g, '').length === 0 ? parseInt(v, 10) : null;
+      }).filter(function (n) { return Number.isFinite(n); });
+
       var unitPrice = nums.length > 0 ? nums[0] : 0;
       var totalPrice = nums.length > 1 ? nums[1] : unitPrice;
-      var shipPrice = nums.length > 2 ? nums[2] : 0;
+      var shipping = nums.length > 2 ? nums[2] : 0;
       if (!unitPrice) return;
-      var qty = totalPrice && unitPrice ? Math.round(totalPrice / unitPrice) : 1;
-      items.push({ name: name, spec: spec, unit: '개', qty: qty, price: unitPrice, selected: true, site: site });
-      if (shipPrice > 0) {
-        items.push({ name: '배송비', spec: '', unit: '식', qty: 1, price: shipPrice, selected: true, site: site });
+
+      var qty = totalPrice && unitPrice ? Math.max(1, Math.round(totalPrice / unitPrice)) : 1;
+      addItem({ name: name, spec: spec, unit: '개', qty: qty, price: unitPrice });
+
+      if (shipping > 0) {
+        addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
       } else {
-        var imgs = c2.querySelectorAll('img');
-        for (var k = 0; k < imgs.length; k++) {
-          if (imgs[k].src.includes('btn_pay_03')) {
-            items.push({ name: '배송비(직접입력)', spec: '', unit: '식', qty: 1, price: 3000, selected: true, site: site });
-            break;
-          }
+        var hasConditionalShipping = Array.from(c2.querySelectorAll('img')).some(function (img) {
+          return (img.src || '').includes('btn_pay_03');
+        });
+        if (hasConditionalShipping) {
+          addItem({ name: '배송비(확인 필요)', unit: '식', qty: 1, price: 0, needsReview: true });
         }
       }
     });
   }
 
-  // ── 사이트 감지 ──────────────────────────────────────────
-  if (host.includes('coupang.com')) {
-    parseCoupang();
-  } else if (host.includes('gmarket.co.kr') || host.includes('gmarket.com')) {
-    parseGmarket();
-  } else if (host.includes('11st.co.kr')) {
-    parse11st();
-  } else if (host.includes('ssg.com') || host.includes('emart.com')) {
-    parseEmart();
-  } else if (host.includes('s2b.kr')) {
-    parseS2B();
-  } else {
-    alert('지원하지 않는 쇼핑몰입니다.\n지원: 쿠팡 / G마켓 / 11번가 / 이마트몰 / S2B');
+  try {
+    if (host.includes('coupang.com')) parseCoupang();
+    else if (host.includes('gmarket.co.kr') || host.includes('gmarket.com')) parseGmarket();
+    else if (host.includes('11st.co.kr')) parse11st();
+    else if (host.includes('ssg.com') || host.includes('emart.com')) parseEmart();
+    else if (host.includes('s2b.kr')) parseS2B();
+    else {
+      alert('지원하지 않는 쇼핑몰입니다.\n지원: 쿠팡 / G마켓 / 11번가 / 이마트몰 / S2B');
+      return;
+    }
+  } catch (error) {
+    alert('장바구니 분석 중 오류가 발생했습니다.\n쇼핑몰 화면이 변경되었을 수 있습니다.');
     return;
   }
 
   if (!items.length) {
-    alert('체크된 상품을 찾지 못했습니다.\n상품을 체크했는지 확인해주세요.');
+    alert('체크된 상품을 찾지 못했습니다.\n상품을 체크했는지 확인해 주세요.');
     return;
   }
 
-  var enc = encodeURIComponent(JSON.stringify(items));
-  window.open('https://kirakein-gif.github.io/cart.html#' + enc, '_blank');
+  var encoded = encodeURIComponent(JSON.stringify(items));
+  window.open(appUrl + '#' + encoded, '_blank');
 })();
