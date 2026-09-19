@@ -2,6 +2,8 @@
 
 ## 3.0.0-beta.1
 
+- 딸깍 장바구니품의서 전용 아이콘을 헤더·favicon에 적용
+
 - 딸깍 장바구니품의서 브랜드/UI 리빌딩 시작
 - index.html 기반 GitHub Pages 구조 도입
 - CSS/앱 로직 분리
