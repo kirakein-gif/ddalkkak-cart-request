@@ -44,6 +44,39 @@ button{cursor:pointer}
   box-shadow:0 6px 18px rgba(120,72,24,.10);
 }
 .brand-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.click-badge{
+  position:relative;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:6px 11px 6px 12px;
+  border-radius:13px;
+  background:linear-gradient(135deg,#f97316,#fb923c);
+  color:#fff;
+  font-size:.76rem;font-weight:900;letter-spacing:-.02em;
+  box-shadow:0 5px 12px rgba(234,88,12,.18);
+  transform-origin:50% 70%;
+  animation:click-pop .65s cubic-bezier(.2,.8,.2,1) .12s both;
+}
+.click-text{display:block}
+.click-spark{
+  position:absolute;
+  right:-8px;top:-9px;
+  color:#f59e0b;
+  font-size:.8rem;
+  text-shadow:0 0 8px rgba(245,158,11,.45);
+  opacity:0;
+  animation:click-spark .75s ease-out .42s both;
+}
+@keyframes click-pop{
+  0%{opacity:0;transform:translateY(3px) scale(.72) rotate(-4deg)}
+  48%{opacity:1;transform:translateY(-2px) scale(1.12) rotate(2deg)}
+  72%{transform:translateY(1px) scale(.96) rotate(-1deg)}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}
+}
+@keyframes click-spark{
+  0%{opacity:0;transform:scale(.25) rotate(-20deg)}
+  38%{opacity:1;transform:scale(1.25) rotate(8deg)}
+  100%{opacity:0;transform:translate(5px,-5px) scale(.65) rotate(25deg)}
+}
 .brand h1{font-size:1.2rem;margin:0;font-weight:800;letter-spacing:-.02em}
 .brand p{margin:4px 0 0;color:#8a735f;font-size:.82rem}
 .version-badge{padding:4px 8px;border-radius:999px;background:#ffedd5;font-size:.7rem;font-weight:800;color:#c2410c}
@@ -112,7 +145,17 @@ kbd{padding:2px 5px;border:1px solid #d0d5dd;border-bottom-width:2px;border-radi
   text-decoration:none;color:#fff;font-size:.9rem;font-weight:800;
   background:linear-gradient(135deg,#2563eb,#7c3aed);
   box-shadow:0 8px 18px rgba(37,99,235,.22);
-  cursor:grab
+  cursor:grab;
+  transition:transform .14s ease,box-shadow .14s ease,filter .14s ease
+}
+.bookmarklet-btn:hover{
+  transform:translateY(-2px) scale(1.012);
+  box-shadow:0 11px 22px rgba(37,99,235,.26);
+  filter:saturate(1.05)
+}
+.bookmarklet-btn:active{
+  transform:translateY(1px) scale(.965);
+  box-shadow:0 4px 10px rgba(37,99,235,.18)
 }
 .bookmarklet-box p{margin:11px 0 8px;color:#667085;font-size:.76rem}
 .supported-sites{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
@@ -213,5 +256,10 @@ tbody tr.review-row{background:#fffbeb}
   .app-header{padding:16px}
   .brand-icon{width:46px;height:46px;border-radius:13px}
   .brand h1{font-size:1.05rem}
+  .click-badge{padding:5px 9px;font-size:.7rem;border-radius:11px}
   .step{padding:9px;font-size:.7rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .click-badge,.click-spark{animation:none!important}
+  .bookmarklet-btn{transition:none}
 }
