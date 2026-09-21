@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.8';
+  var EXTRACTOR_VERSION = '3.0.9';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -33,6 +33,45 @@
     document.querySelectorAll('input[type=checkbox]:checked').forEach(function (cb) {
       try { callback(cb); } catch (_) {}
     });
+  }
+
+  function showToast(message) {
+    var old = document.getElementById('ddalkkak-extractor-toast');
+    if (old) old.remove();
+
+    var toast = document.createElement('div');
+    toast.id = 'ddalkkak-extractor-toast';
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.right = '24px';
+    toast.style.bottom = '24px';
+    toast.style.zIndex = '2147483647';
+    toast.style.maxWidth = '420px';
+    toast.style.padding = '14px 18px';
+    toast.style.borderRadius = '12px';
+    toast.style.background = '#92400e';
+    toast.style.color = '#fff';
+    toast.style.fontFamily = 'Pretendard, "Malgun Gothic", sans-serif';
+    toast.style.fontSize = '14px';
+    toast.style.fontWeight = '700';
+    toast.style.lineHeight = '1.5';
+    toast.style.boxShadow = '0 12px 28px rgba(15,23,42,.22)';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(12px)';
+    toast.style.transition = 'opacity .2s ease, transform .2s ease';
+    toast.style.pointerEvents = 'none';
+
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    setTimeout(function () {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(12px)';
+      setTimeout(function () { toast.remove(); }, 220);
+    }, 2600);
   }
 
   function parseCoupang() {
@@ -293,7 +332,7 @@
   }
 
   if (!items.length) {
-    window.open(appUrl + '?notice=no-items', '_blank');
+    showToast('선택된 상품을 찾지 못했습니다. 장바구니에서 상품을 체크한 뒤 다시 실행해 주세요.');
     return;
   }
 

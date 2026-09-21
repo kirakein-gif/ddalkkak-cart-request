@@ -18,17 +18,14 @@
     setupBookmarklet();
     bindEvents();
 
-    const launchNotice = consumeLaunchNotice();
     const imported = readItemsFromHash();
-    if (!imported && launchNotice !== 'no-items') restoreDraft();
+    if (!imported) restoreDraft();
 
     $('purposeInput').value = state.purpose || DEFAULT_PURPOSE;
     render();
 
     if (imported) {
       showToast('장바구니 품목을 가져왔습니다.');
-    } else if (launchNotice === 'no-items') {
-      showToast('선택된 상품을 찾지 못했습니다. 장바구니에서 상품을 체크한 뒤 다시 실행해 주세요.', 'warn');
     }
   }
 
@@ -76,25 +73,6 @@
       button.classList.toggle('active', active);
       button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-  }
-
-  function consumeLaunchNotice() {
-    try {
-      const url = new URL(location.href);
-      const notice = url.searchParams.get('notice') || '';
-      if (!notice) return '';
-
-      url.searchParams.delete('notice');
-      const search = url.searchParams.toString();
-      history.replaceState(
-        null,
-        '',
-        location.pathname + (search ? '?' + search : '') + location.hash
-      );
-      return notice;
-    } catch (_) {
-      return '';
-    }
   }
 
   function readItemsFromHash() {
