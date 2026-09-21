@@ -21,7 +21,7 @@
         <div class="brand-line">
           <span class="click-badge" aria-label="딸깍"><span class="click-text">딸깍!</span><span class="click-spark" aria-hidden="true">✦</span></span>
           <h1>장바구니품의서</h1>
-          <span class="version-badge">v3.0.1 beta</span>
+          <span class="version-badge">v3.0.2 beta</span>
         </div>
         <p>장바구니에서 품목을 딸깍, 품의자료까지 한 번에</p>
       </div>
@@ -68,75 +68,90 @@
       </div>
     </section>
 
-    <section class="card workspace-card">
-      <div class="card-heading compact">
-        <div>
-          <span class="eyebrow">작업 영역</span>
-          <h2>품목 확인·수정</h2>
-          <p id="sourceText">장바구니에서 상품을 가져오면 여기에 표시됩니다.</p>
+    <section class="work-layout">
+      <section class="card workspace-card">
+        <div class="card-heading compact">
+          <div>
+            <span class="eyebrow">작업 영역</span>
+            <h2>품목 확인·수정</h2>
+            <p id="sourceText">장바구니에서 상품을 가져오면 여기에 표시됩니다.</p>
+          </div>
+          <div class="toolbar">
+            <button class="btn secondary" id="addRowBtn" type="button">＋ 직접 추가</button>
+            <button class="btn ghost danger" id="clearBtn" type="button">목록 초기화</button>
+          </div>
         </div>
-        <div class="toolbar">
-          <button class="btn secondary" id="addRowBtn" type="button">＋ 직접 추가</button>
-          <button class="btn ghost danger" id="clearBtn" type="button">목록 초기화</button>
-        </div>
-      </div>
 
-      <div id="emptyState" class="empty-state">
-        <div class="empty-icon">🛒</div>
-        <strong>아직 가져온 품목이 없습니다.</strong>
-        <span>위의 북마클릿을 설치한 뒤 쇼핑몰 장바구니에서 실행해 주세요.</span>
-      </div>
-
-      <div id="tableWrap" class="table-wrap hidden">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th class="check-col"><input type="checkbox" id="chkAll" checked aria-label="전체 선택"></th>
-                <th>상품명</th>
-                <th>규격·옵션</th>
-                <th class="small-col">단위</th>
-                <th class="small-col">수량</th>
-                <th class="money-col">단가</th>
-                <th class="money-col">금액</th>
-                <th class="action-col"></th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">🛒</div>
+          <strong>아직 가져온 품목이 없습니다.</strong>
+          <span>위의 북마클릿을 설치한 뒤 쇼핑몰 장바구니에서 실행해 주세요.</span>
         </div>
-        <div id="reviewNotice" class="review-notice hidden">⚠️ 확인이 필요한 항목이 있습니다. 금액을 확인한 뒤 진행해 주세요.</div>
-      </div>
-    </section>
 
-    <section class="card purpose-card">
-      <div class="purpose-grid">
-        <div>
-          <label for="purposeInput">구입 목적</label>
-          <p>품의개요와 원인행위개요의 ○○○○ 부분을 자동으로 채웁니다.</p>
+        <div id="tableWrap" class="table-wrap hidden">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th class="check-col"><input type="checkbox" id="chkAll" checked aria-label="전체 선택"></th>
+                  <th>상품명</th>
+                  <th>규격·옵션</th>
+                  <th class="small-col">단위</th>
+                  <th class="small-col">수량</th>
+                  <th class="money-col">단가</th>
+                  <th class="money-col">금액</th>
+                  <th class="action-col"></th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+          <div id="reviewNotice" class="review-notice hidden">⚠️ 확인이 필요한 항목이 있습니다. 금액을 확인한 뒤 진행해 주세요.</div>
         </div>
-        <input id="purposeInput" type="text" placeholder="예: 유아 교육활동" autocomplete="off">
-      </div>
-    </section>
+      </section>
 
-    <section class="output-grid">
-      <article class="card output-card">
-        <div class="output-heading">
-          <div><span class="eyebrow">품의 단계</span><h2>품의개요</h2></div>
-          <button class="btn primary" id="copySummaryBtn" type="button">복사</button>
-        </div>
-        <pre id="summaryText" class="output-text">품목을 가져오면 자동으로 생성됩니다.</pre>
-        <button class="btn download" id="exportExcelBtn" type="button">📥 품의서용 Excel 다운로드</button>
-      </article>
+      <aside class="result-stack">
+        <section class="card purpose-card">
+          <div class="purpose-grid">
+            <div>
+              <label for="purposeInput">구입 목적</label>
+              <p>품의개요와 원인행위개요의 ○○○○ 부분을 자동으로 채웁니다.</p>
+            </div>
+            <input id="purposeInput" type="text" placeholder="예: 유아 교육활동" autocomplete="off">
+          </div>
+        </section>
 
-      <article class="card output-card accent-purple">
-        <div class="output-heading">
-          <div><span class="eyebrow">원인행위 단계</span><h2>원인행위개요</h2></div>
-          <button class="btn purple" id="copyCauseBtn" type="button">복사</button>
-        </div>
-        <pre id="causeText" class="output-text">품목을 가져오면 자동으로 생성됩니다.</pre>
-        <button class="btn download purple" id="exportCauseBtn" type="button">📥 원인행위용 Excel 다운로드</button>
-      </article>
+        <section class="card result-panel">
+          <div class="result-panel-head">
+            <div>
+              <span class="eyebrow">작성 결과</span>
+              <h2>품의자료</h2>
+            </div>
+            <div class="result-tabs" role="tablist" aria-label="품의자료 종류">
+              <button class="result-tab active" type="button" data-output-tab="summary" role="tab" aria-selected="true">품의개요</button>
+              <button class="result-tab" type="button" data-output-tab="cause" role="tab" aria-selected="false">원인행위개요</button>
+            </div>
+          </div>
+
+          <article class="output-pane active" id="summaryPane">
+            <div class="output-heading compact-output-heading">
+              <div><span class="eyebrow">품의 단계</span><h2>품의개요</h2></div>
+              <button class="btn primary" id="copySummaryBtn" type="button">복사</button>
+            </div>
+            <pre id="summaryText" class="output-text">품목을 가져오면 자동으로 생성됩니다.</pre>
+            <button class="btn download" id="exportExcelBtn" type="button">📥 품의서용 Excel 다운로드</button>
+          </article>
+
+          <article class="output-pane" id="causePane">
+            <div class="output-heading compact-output-heading">
+              <div><span class="eyebrow">원인행위 단계</span><h2>원인행위개요</h2></div>
+              <button class="btn purple" id="copyCauseBtn" type="button">복사</button>
+            </div>
+            <pre id="causeText" class="output-text">품목을 가져오면 자동으로 생성됩니다.</pre>
+            <button class="btn download purple" id="exportCauseBtn" type="button">📥 원인행위용 Excel 다운로드</button>
+          </article>
+        </section>
+      </aside>
     </section>
 
     <details class="card help-card">
@@ -149,7 +164,10 @@
     </details>
 
     <footer class="footer-note">
-      <strong>딸깍 장바구니품의서</strong>
+      <div class="footer-brand">
+        <strong>딸깍 장바구니품의서</strong>
+        <span>개발자: 천안버들유치원 나대현</span>
+      </div>
       <span>장바구니 데이터는 서버에 저장하지 않고 현재 브라우저에서만 처리합니다.</span>
     </footer>
   </main>

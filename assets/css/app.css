@@ -264,3 +264,86 @@ tbody tr.review-row{background:#fffbeb}
   .click-badge,.click-spark{animation:none!important}
   .bookmarklet-btn{transition:none}
 }
+
+
+/* v3.0.2 desktop layout: use horizontal space to reduce vertical scrolling */
+.app-shell{width:min(1580px,calc(100% - 40px))}
+.work-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.55fr) minmax(390px,.72fr);
+  gap:16px;
+  align-items:start;
+  margin-bottom:14px
+}
+.work-layout>.workspace-card{margin-bottom:0;min-width:0}
+.result-stack{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  position:sticky;
+  top:14px
+}
+.result-stack .purpose-card{margin-bottom:0}
+.result-stack .purpose-grid{grid-template-columns:1fr;gap:10px}
+.result-stack .purpose-card{padding:18px 20px}
+.result-panel{padding:20px 20px 18px}
+.result-panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px
+}
+.result-panel-head h2{margin:3px 0 0;font-size:23px;line-height:1.25}
+.result-tabs{
+  display:flex;
+  gap:4px;
+  padding:4px;
+  border-radius:11px;
+  background:#f1f5f9
+}
+.result-tab{
+  min-height:36px;
+  padding:8px 10px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#64748b;
+  font-size:13px;
+  font-weight:800
+}
+.result-tab.active{
+  background:#fff;
+  color:#2563eb;
+  box-shadow:0 2px 7px rgba(15,23,42,.08)
+}
+.output-pane{display:none}
+.output-pane.active{display:block}
+.compact-output-heading{margin-bottom:10px}
+.result-panel .output-text{
+  min-height:0;
+  max-height:300px;
+  overflow:auto;
+  padding:13px 14px;
+  font-size:14.5px;
+  line-height:1.68
+}
+.result-panel .btn.download{margin-top:10px}
+.table-wrap th,.table-wrap td{padding-top:9px;padding-bottom:9px}
+.footer-brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.footer-brand span{color:#7c8aa0;font-weight:650}
+
+@media(max-width:1180px){
+  .app-shell{width:min(100% - 28px,1180px)}
+  .work-layout{grid-template-columns:1fr}
+  .result-stack{position:static}
+  .result-stack .purpose-grid{grid-template-columns:1fr 1.25fr}
+  .result-panel .output-text{max-height:none}
+}
+@media(max-width:820px){
+  .result-stack .purpose-grid{grid-template-columns:1fr}
+  .result-panel-head{flex-direction:column}
+  .result-tabs{width:100%}
+  .result-tab{flex:1}
+}

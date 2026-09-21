@@ -59,6 +59,20 @@
     $('copyCauseBtn').addEventListener('click', () => copyText($('causeText').textContent, '원인행위개요를 복사했습니다.'));
     $('exportExcelBtn').addEventListener('click', exportProposalExcel);
     $('exportCauseBtn').addEventListener('click', exportCauseExcel);
+    document.querySelectorAll('[data-output-tab]').forEach((button) => {
+      button.addEventListener('click', () => activateOutputTab(button.dataset.outputTab));
+    });
+  }
+
+  function activateOutputTab(name) {
+    const isSummary = name !== 'cause';
+    $('summaryPane').classList.toggle('active', isSummary);
+    $('causePane').classList.toggle('active', !isSummary);
+    document.querySelectorAll('[data-output-tab]').forEach((button) => {
+      const active = button.dataset.outputTab === (isSummary ? 'summary' : 'cause');
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
   }
 
   function readItemsFromHash() {
