@@ -1,6 +1,7 @@
 (function () {
   'use strict';
 
+  var EXTRACTOR_VERSION = '3.0.1';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -23,6 +24,7 @@
       price: Number.isFinite(price) && price >= 0 ? price : 0,
       selected: true,
       site: site,
+      extractorVersion: EXTRACTOR_VERSION,
       needsReview: Boolean(data.needsReview)
     });
   }
@@ -58,6 +60,9 @@
       var fallback = txt.match(/^([\s\S]+?)삭제/);
       var name = nm ? nm[1].trim() : (fallback ? fallback[1].trim() : '');
       if (!name) return;
+
+      // 안내 배너가 실제 상품 컨테이너처럼 잡힌 경우 최종 상품명 단계에서 다시 제외한다.
+      if (/품절임박|남은 상품이 있어요|로켓배송 상품들/.test(name)) return;
 
       var sm = txt.match(/옵션:\s*([^\n]+)/);
       var rawSpec = sm ? sm[1].trim() : '';
@@ -278,6 +283,13 @@
   } catch (error) {
     alert('장바구니 분석 중 오류가 발생했습니다.\n쇼핑몰 화면이 변경되었을 수 있습니다.');
     return;
+  }
+
+  // 쿠팡 안내/그룹 배너가 어떤 DOM 구조로 들어오더라도 최종 전달 전에 한 번 더 제거한다.
+  if (site === '쿠팡') {
+    items = items.filter(function (item) {
+      return !/품절임박|남은 상품이 있어요|로켓배송 상품들/.test(item.name || '');
+    });
   }
 
   if (!items.length) {

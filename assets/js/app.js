@@ -6,7 +6,8 @@
   const state = {
     items: [],
     purpose: DEFAULT_PURPOSE,
-    sourceSite: ''
+    sourceSite: '',
+    extractorVersion: ''
   };
 
   const $ = (id) => document.getElementById(id);
@@ -70,6 +71,7 @@
 
       state.items = parsed.map(normalizeItem).filter((item) => item.name);
       state.sourceSite = state.items[0]?.site || '';
+      state.extractorVersion = state.items[0]?.extractorVersion || '';
       history.replaceState(null, '', location.pathname + location.search);
       saveDraft();
       return state.items.length > 0;
@@ -89,6 +91,7 @@
       price: toNonNegativeNumber(item?.price, 0),
       selected: item?.selected !== false,
       site: String(item?.site || '').trim(),
+      extractorVersion: String(item?.extractorVersion || '').trim(),
       needsReview: Boolean(item?.needsReview)
     };
   }
@@ -112,6 +115,7 @@
       state.items = saved.items.map(normalizeItem);
       state.purpose = String(saved.purpose || DEFAULT_PURPOSE);
       state.sourceSite = String(saved.sourceSite || state.items[0]?.site || '');
+      state.extractorVersion = String(saved.extractorVersion || state.items[0]?.extractorVersion || '');
       showToast('이전 작업을 복구했습니다.');
     } catch (_) {
       localStorage.removeItem(STORAGE_KEY);
@@ -124,6 +128,7 @@
         items: state.items,
         purpose: state.purpose,
         sourceSite: state.sourceSite,
+        extractorVersion: state.extractorVersion,
         savedAt: new Date().toISOString()
       }));
     } catch (_) {}
@@ -141,7 +146,7 @@
     $('tableWrap').classList.toggle('hidden', !hasItems);
     $('installPanel').classList.toggle('hidden', hasItems);
     $('sourceText').textContent = hasItems
-      ? (state.sourceSite ? state.sourceSite + '에서 가져온 품목입니다. 필요한 값은 바로 수정할 수 있습니다.' : '품목을 확인하고 필요한 값을 수정하세요.')
+      ? (state.sourceSite ? state.sourceSite + '에서 가져온 품목입니다.' + (state.extractorVersion ? ' · 추출기 v' + state.extractorVersion : '') + ' 필요한 값은 바로 수정할 수 있습니다.' : '품목을 확인하고 필요한 값을 수정하세요.')
       : '장바구니에서 상품을 가져오면 여기에 표시됩니다.';
 
     const tbody = $('tbody');
@@ -282,6 +287,7 @@
       price: 0,
       selected: true,
       site: state.sourceSite,
+      extractorVersion: state.extractorVersion,
       needsReview: true
     });
     commitAndRender();
@@ -293,6 +299,7 @@
     if (!confirm('현재 작업 중인 품목을 모두 지울까요?')) return;
     state.items = [];
     state.sourceSite = '';
+    state.extractorVersion = '';
     localStorage.removeItem(STORAGE_KEY);
     render();
     showToast('목록을 초기화했습니다.');
