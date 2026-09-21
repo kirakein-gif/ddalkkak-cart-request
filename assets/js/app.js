@@ -158,6 +158,7 @@
   function renderWorkspace() {
     const hasItems = state.items.length > 0;
     $('emptyState').classList.toggle('hidden', hasItems);
+    $('stepStrip').classList.toggle('hidden', hasItems);
     $('tableWrap').classList.toggle('hidden', !hasItems);
     $('installPanel').classList.toggle('hidden', hasItems);
     $('sourceText').textContent = hasItems
