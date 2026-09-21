@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.6';
+  var EXTRACTOR_VERSION = '3.0.7';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -293,7 +293,7 @@
   }
 
   if (!items.length) {
-    alert('체크된 상품을 찾지 못했습니다.\n상품을 체크했는지 확인해 주세요.');
+    window.open(appUrl + '?notice=no-items', '_blank');
     return;
   }
 
