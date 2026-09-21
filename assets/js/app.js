@@ -2,7 +2,7 @@
   'use strict';
 
   const STORAGE_KEY = 'ddalkkak-cart-request-v3';
-  const DEFAULT_PURPOSE = '유아 교육활동';
+  const DEFAULT_PURPOSE = '학생 교육활동';
   const state = {
     items: [],
     purpose: DEFAULT_PURPOSE,
@@ -127,7 +127,8 @@
       const saved = JSON.parse(raw);
       if (!saved || !Array.isArray(saved.items) || !saved.items.length) return;
       state.items = saved.items.map(normalizeItem);
-      state.purpose = String(saved.purpose || DEFAULT_PURPOSE);
+      const savedPurpose = String(saved.purpose || '').trim();
+      state.purpose = (!savedPurpose || savedPurpose === '유아 교육활동') ? DEFAULT_PURPOSE : savedPurpose;
       state.sourceSite = String(saved.sourceSite || state.items[0]?.site || '');
       state.extractorVersion = String(saved.extractorVersion || state.items[0]?.extractorVersion || '');
       showToast('이전 작업을 복구했습니다.');
@@ -275,17 +276,29 @@
     const numAmount = '금' + total.toLocaleString('ko-KR') + '원';
     const korAmount = '금' + numToKorean(total) + '원';
 
+    const purposeObject = purpose + objectParticle(purpose);
+
     $('summaryText').textContent =
-      purpose + '을 위한 물품구입(' + itemStr + ')\n\n' +
-      purpose + '을 위한 물품을 구입하고자 합니다.\n' +
+      purposeObject + ' 위한 물품구입(' + itemStr + ')\n\n' +
+      purposeObject + ' 위한 물품을 구입하고자 합니다.\n' +
       ' 1. 품목: ' + itemStr + '\n' +
       ' 2. 금액: ' + numAmount + '(' + korAmount + ')';
 
     $('causeText').textContent =
-      purpose + '을 위한 물품구입비 지급(' + itemStr + ')\n\n' +
-      purpose + '을 위한 물품을 구입하고 대가를 지급하고자 합니다.\n' +
+      purposeObject + ' 위한 물품구입비 지급(' + itemStr + ')\n\n' +
+      purposeObject + ' 위한 물품을 구입하고 대가를 지급하고자 합니다.\n' +
       ' 1. 품목: ' + itemStr + '\n' +
       ' 2. 금액: ' + numAmount + '(' + korAmount + ')';
+  }
+
+  function objectParticle(text) {
+    const value = String(text || '').trim();
+    if (!value) return '을/를';
+    const last = value.charCodeAt(value.length - 1);
+    if (last >= 0xAC00 && last <= 0xD7A3) {
+      return ((last - 0xAC00) % 28) === 0 ? '를' : '을';
+    }
+    return '을/를';
   }
 
   function isShipping(item) {
