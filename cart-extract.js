@@ -41,6 +41,16 @@
       var container = cb.parentElement && cb.parentElement.parentElement && cb.parentElement.parentElement.parentElement;
       if (!container) return;
       var txt = container.innerText || '';
+
+      // 장바구니 그룹/안내 영역의 체크박스가 선택된 경우,
+      // 상위 컨테이너에 여러 상품이 한꺼번에 들어 있어 첫 상품이 중복 추출될 수 있다.
+      // 실제 상품 행은 보통 '삭제'가 1회만 나타나므로 다중 상품 컨테이너는 제외한다.
+      var deleteCount = (txt.match(/삭제/g) || []).length;
+      if (deleteCount > 1) return;
+
+      // 쿠팡 상단의 품절임박/그룹 안내 문구는 상품명이 아니므로 제외한다.
+      if (/품절임박|남은 상품이 있어요|로켓배송 상품들/.test(txt.split('\n')[0] || '')) return;
+
       var allP = txt.match(/([\d,]+)\s*원/g);
       if (!allP) return;
 
@@ -56,7 +66,7 @@
       if (!price) return;
 
       var spec = rawSpec.replace(/,?\s*\d+개$/, '').trim();
-      var key = name + '|' + spec;
+      var key = name + '|' + spec + '|' + price;
       if (seen[key]) return;
       seen[key] = true;
 
