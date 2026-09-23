@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.16';
+  var EXTRACTOR_VERSION = '3.0.17';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -203,8 +203,13 @@
     var bundleSeen = {};
 
     eachChecked(function (cb) {
-      var c = cb.parentElement && cb.parentElement.parentElement;
+      // 비로그인 11번가는 실제 상품이 li.s_cart_prd 안에 있고,
+      // 수량은 input.input_count_modify(value)로 제공한다.
+      // 로그인 화면과의 호환을 위해 기존 부모 탐색/텍스트 방식도 fallback으로 유지한다.
+      var c = cb.closest ? cb.closest('li.s_cart_prd') : null;
+      if (!c) c = cb.parentElement && cb.parentElement.parentElement;
       if (!c) return;
+
       var t = c.innerText || '';
       if (t.length < 100) return;
 
@@ -212,8 +217,29 @@
       if (!name) return;
 
       var op = t.match(/옵션\n(.+?)\n/);
-      var qm = t.match(/(\d+)쿠폰변경/);
-      var qty = qm ? parseInt(qm[1], 10) : 1;
+
+      var qty = 0;
+      var qtyInput = c.querySelector && (
+        c.querySelector('input.input_count_modify') ||
+        c.querySelector('input[title="수량"]') ||
+        c.querySelector('input[name^="qty_"]')
+      );
+      if (qtyInput) {
+        qty = parseInt(String(qtyInput.value || '').replace(/,/g, ''), 10);
+      }
+
+      if (!Number.isFinite(qty) || qty < 1) {
+        var qtyButton = c.querySelector && c.querySelector('button.btn_count_modify[title="수량변경"]');
+        if (qtyButton) {
+          qty = parseInt(String(qtyButton.innerText || qtyButton.textContent || '').replace(/,/g, ''), 10);
+        }
+      }
+
+      if (!Number.isFinite(qty) || qty < 1) {
+        var qm = t.match(/(\d+)쿠폰변경/);
+        qty = qm ? parseInt(qm[1], 10) : 1;
+      }
+
       var pm = t.match(/할인모음가\n([\d,]+)원/) || t.match(/판매가\n([\d,]+)원/);
       var totalOrPrice = pm ? parseInt(pm[1].replace(/,/g, ''), 10) : 0;
       var price = totalOrPrice ? Math.floor(totalOrPrice / qty) : 0;
