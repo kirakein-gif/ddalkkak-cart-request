@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.10';
+  var EXTRACTOR_VERSION = '3.0.11';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -105,16 +105,27 @@
 
       var sm = txt.match(/옵션:\s*([^\n]+)/);
       var rawSpec = sm ? sm[1].trim() : '';
+
+      // 쿠팡은 실제 장바구니 수량을 .cart-quantity-input 의 value에 보관한다.
+      // 화면에 표시되는 큰 금액은 해당 행의 수량 전체 금액이므로 수량으로 나눠 단가를 복원한다.
+      var qtyInput = container.querySelector('input.cart-quantity-input') ||
+        container.querySelector('input[class*="cart-quantity-input"]');
+      var qty = qtyInput ? parseInt(String(qtyInput.value || '').replace(/,/g, ''), 10) : 1;
+      if (!Number.isFinite(qty) || qty < 1) qty = 1;
+
       var discM = txt.match(/\d+%\s*([\d,]+)\s*원/);
-      var price = discM ? parseInt(discM[1].replace(/,/g, ''), 10) : parseInt(allP[0].replace(/[^\d]/g, ''), 10);
-      if (!price) return;
+      var lineTotal = discM ? parseInt(discM[1].replace(/,/g, ''), 10) : parseInt(allP[0].replace(/[^\d]/g, ''), 10);
+      if (!lineTotal) return;
+
+      var price = qty > 1 ? Math.round(lineTotal / qty) : lineTotal;
+      var needsReview = qty > 1 && (lineTotal % qty !== 0);
 
       var spec = rawSpec.replace(/,?\s*\d+개$/, '').trim();
-      var key = name + '|' + spec + '|' + price;
+      var key = name + '|' + spec + '|' + qty + '|' + price;
       if (seen[key]) return;
       seen[key] = true;
 
-      addItem({ name: name, spec: spec, unit: '개', qty: 1, price: price });
+      addItem({ name: name, spec: spec, unit: '개', qty: qty, price: price, needsReview: needsReview });
     });
 
     var shipEl = Array.from(document.querySelectorAll('*')).find(function (el) {
@@ -309,6 +320,33 @@
     });
   }
 
+  function consolidateShippingItems() {
+    var shippingItems = items.filter(function (item) {
+      return /배송비/.test(item.name || '');
+    });
+    if (shippingItems.length <= 1) return;
+
+    var total = shippingItems.reduce(function (sum, item) {
+      return sum + ((parseInt(item.price, 10) || 0) * (parseInt(item.qty, 10) || 1));
+    }, 0);
+    var needsReview = shippingItems.some(function (item) { return item.needsReview; });
+
+    items = items.filter(function (item) {
+      return !/배송비/.test(item.name || '');
+    });
+    items.push({
+      name: needsReview ? '배송비(합계·확인 필요)' : '배송비',
+      spec: shippingItems.length + '건 합산',
+      unit: '식',
+      qty: 1,
+      price: total,
+      selected: true,
+      site: site,
+      extractorVersion: EXTRACTOR_VERSION,
+      needsReview: needsReview
+    });
+  }
+
   try {
     if (host.includes('coupang.com')) parseCoupang();
     else if (host.includes('gmarket.co.kr') || host.includes('gmarket.com')) parseGmarket();
@@ -335,6 +373,8 @@
     showToast('선택된 상품을 찾지 못했습니다. 장바구니에서 상품을 체크한 뒤 다시 실행해 주세요.');
     return;
   }
+
+  consolidateShippingItems();
 
   var encoded = encodeURIComponent(JSON.stringify(items));
   window.open(appUrl + '#' + encoded, '_blank');
