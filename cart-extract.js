@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.15';
+  var EXTRACTOR_VERSION = '3.0.16';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -283,57 +283,67 @@
 
   function parseS2B() {
     site = 'S2B';
-    var NL = String.fromCharCode(10);
-    var TAB = String.fromCharCode(9);
-    var skip = ['S2B', '바이', '(주)', '모노트', '지오', '에듀', '비즈', '안나', '별하랑', '지영'];
-
-    function shouldSkip(s) {
-      return skip.some(function (word) { return s.includes(word); });
-    }
+    var selectedData = [];
 
     eachChecked(function (cb) {
-      var c2 = cb.parentElement && cb.parentElement.parentElement;
-      if (!c2) return;
+      // S2B 상품 체크박스 value 자체에 상품/가격/배송 조건이 JSON으로 들어 있다.
+      if (cb.id !== 'chk[]') return;
 
-      var t = c2.innerText || '';
-      var lines = t.split(NL).map(function (s) { return s.trim(); }).filter(Boolean);
-      var name = '';
-      var spec = '';
-
-      for (var i = 0; i < lines.length; i += 1) {
-        var line = lines[i].split(TAB)[0].trim();
-        if (line.length < 2 || shouldSkip(line)) continue;
-        if (line.charAt(4) === '-' && line.charAt(7) === '-') continue;
-        if (line.replace(/[0-9,]/g, '').length === 0) continue;
-        if (!name) name = line;
-        else if (!spec) { spec = line; break; }
+      var data;
+      try {
+        data = JSON.parse(String(cb.value || ''));
+      } catch (_) {
+        return;
       }
-      if (!name) return;
 
-      var nums = t.split(TAB).map(function (s) { return s.trim(); }).map(function (s) {
-        var v = s.replace(/,/g, '');
-        return v.length >= 3 && v.replace(/[0-9]/g, '').length === 0 ? parseInt(v, 10) : null;
-      }).filter(function (n) { return Number.isFinite(n); });
+      if (!data || !data.goods_name || !data.estimate_amt) return;
 
-      var unitPrice = nums.length > 0 ? nums[0] : 0;
-      var totalPrice = nums.length > 1 ? nums[1] : unitPrice;
-      var shipping = nums.length > 2 ? nums[2] : 0;
-      if (!unitPrice) return;
+      var rnum = String(data.rnum || '').trim();
+      var qtyInput = rnum ? document.querySelector('input[name="f_estimate_quantity' + rnum + '"]') : null;
+      var qty = qtyInput
+        ? parseInt(String(qtyInput.value || '').replace(/,/g, ''), 10)
+        : parseInt(String(data.estimate_quantity || '1').replace(/,/g, ''), 10);
+      if (!Number.isFinite(qty) || qty < 1) qty = 1;
 
-      var qty = totalPrice && unitPrice ? Math.max(1, Math.round(totalPrice / unitPrice)) : 1;
-      addItem({ name: name, spec: spec, unit: '개', qty: qty, price: unitPrice });
+      var unitPrice = parseInt(String(data.estimate_amt || '0').replace(/,/g, ''), 10);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
 
-      if (shipping > 0) {
-        addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
-      } else {
-        var hasConditionalShipping = Array.from(c2.querySelectorAll('img')).some(function (img) {
-          return (img.src || '').includes('btn_pay_03');
-        });
-        if (hasConditionalShipping) {
-          addItem({ name: '배송비(확인 필요)', unit: '식', qty: 1, price: 0, needsReview: true });
-        }
-      }
+      var unit = String(data.credit_str || '개').trim() || '개';
+      var spec = String(data.size || '').trim();
+
+      addItem({
+        name: String(data.goods_name || '').trim(),
+        spec: spec,
+        unit: unit,
+        qty: qty,
+        price: unitPrice
+      });
+
+      selectedData.push(data);
     });
+
+    // S2B가 선택 상품과 조건부무료/묶음배송 규칙까지 계산해 둔 최종 배송비를 그대로 사용한다.
+    // 직접 상품별 배송비를 다시 합산하면 조건부무료 및 묶음배송 Y/N에서 오차가 생길 수 있다.
+    var totalFeeEl = document.getElementById('tot_fee');
+    var totalFee = totalFeeEl
+      ? parseInt(String(totalFeeEl.value || totalFeeEl.innerText || '0').replace(/[^0-9-]/g, ''), 10)
+      : NaN;
+
+    if (Number.isFinite(totalFee) && totalFee > 0) {
+      addItem({ name: '배송비', unit: '식', qty: 1, price: totalFee });
+    } else if (!Number.isFinite(totalFee) && selectedData.some(function (data) {
+      return parseInt(String(data.delivery_fee || '0').replace(/,/g, ''), 10) > 0 ||
+        String(data.delivery_fee_kind || '') === '3';
+    })) {
+      addItem({
+        name: '배송비(확인 필요)',
+        spec: 'S2B 최종 배송비 확인',
+        unit: '식',
+        qty: 1,
+        price: 0,
+        needsReview: true
+      });
+    }
   }
 
   function consolidateShippingItems() {
