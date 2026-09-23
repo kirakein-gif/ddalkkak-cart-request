@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.14';
+  var EXTRACTOR_VERSION = '3.0.15';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
