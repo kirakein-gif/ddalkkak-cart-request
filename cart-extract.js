@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.13';
+  var EXTRACTOR_VERSION = '3.0.14';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -141,45 +141,61 @@
 
   function parseGmarket() {
     site = 'G마켓';
+    var seen = {};
 
     eachChecked(function (cb) {
-      var p2 = cb.parentElement && cb.parentElement.parentElement;
-      if (!p2 || (p2.innerText || '').length > 0) return;
-      var c = p2.parentElement;
-      if (!c) return;
-      var t = c.innerText || '';
-      if (!t.includes('상품명:')) return;
+      // 판매자 전체 선택 체크박스가 아니라 실제 상품 체크박스만 처리한다.
+      var item = cb.closest ? cb.closest('.item') : null;
+      if (!item) return;
 
-      var nm = t.match(/상품명:\n(.+?)\n/);
+      var t = item.innerText || '';
+      if (!t.includes('상품명:') || !t.includes('상품 금액')) return;
+
+      var nm = t.match(/상품명:\s*\n?([^\n]+)/);
       var name = nm ? nm[1].trim() : '';
       if (!name) return;
 
-      t.split('구매할 상품 상세 정보').forEach(function (block) {
-        if (!block.includes('상품 금액 :')) return;
-        var op = block.match(/옵션선택 정보\n(.+?)\n/);
-        var qm = block.match(/상품 수\s+(\d+)\s+증가/);
-        var pm = block.match(/상품 금액 :\n([\d,]+)원/);
-        var price = pm ? parseInt(pm[1].replace(/,/g, ''), 10) : 0;
-        if (!price) return;
-        addItem({
-          name: name,
-          spec: op ? op[1].trim() : '',
-          unit: '개',
-          qty: qm ? parseInt(qm[1], 10) : 1,
-          price: price
-        });
+      var op = t.match(/옵션선택 정보\s*\n([^\n]+)/);
+      var spec = op ? op[1].trim() : '';
+
+      // G마켓 새 장바구니는 실제 수량을 input.item_qty_count.value 에 보관한다.
+      var qtyInput = item.querySelector('input.item_qty_count') ||
+        item.querySelector('input[title="상품수량"]') ||
+        item.querySelector('input[type="number"]');
+      var qty = qtyInput ? parseInt(String(qtyInput.value || '').replace(/,/g, ''), 10) : 1;
+      if (!Number.isFinite(qty) || qty < 1) qty = 1;
+
+      // 상품 금액은 해당 행의 수량 전체 금액이므로 수량으로 나눠 단가를 복원한다.
+      var pm = t.match(/상품 금액\s*:\s*\n?([\d,]+)원/);
+      var lineTotal = pm ? parseInt(pm[1].replace(/,/g, ''), 10) : 0;
+      if (!lineTotal) return;
+
+      var price = qty > 1 ? Math.round(lineTotal / qty) : lineTotal;
+      var needsReview = qty > 1 && (lineTotal % qty !== 0);
+
+      var key = (cb.id || '') + '|' + name + '|' + spec + '|' + qty + '|' + lineTotal;
+      if (seen[key]) return;
+      seen[key] = true;
+
+      addItem({
+        name: name,
+        spec: spec,
+        unit: '개',
+        qty: qty,
+        price: price,
+        needsReview: needsReview
       });
     });
 
-    var shipLi = Array.from(document.querySelectorAll('li')).find(function (el) {
+    // 기존 G마켓 배송비 표시 형식도 계속 지원한다.
+    Array.from(document.querySelectorAll('li')).forEach(function (el) {
       var t = el.innerText || '';
-      return t.startsWith('배송비\n') && t.includes('원') && !t.includes('무료') && t.length < 20;
-    });
-    if (shipLi) {
-      var sm = shipLi.innerText.match(/([\d,]+)원/);
+      if (!t.startsWith('배송비') || !t.includes('원') || t.includes('무료')) return;
+      if (t.length > 60) return;
+      var sm = t.match(/배송비\s*([\d,]+)원/) || t.match(/([\d,]+)원/);
       var shipping = sm ? parseInt(sm[1].replace(/,/g, ''), 10) : 0;
       if (shipping > 0) addItem({ name: '배송비', unit: '식', qty: 1, price: shipping });
-    }
+    });
   }
 
   function parse11st() {
