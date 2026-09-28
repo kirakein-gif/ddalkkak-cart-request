@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>키드키즈몰 장바구니 진단 | 딸깍 장바구니품의서</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f5f7fb;color:#172033;font-family:Pretendard,"Malgun Gothic",sans-serif}
+    .wrap{max-width:760px;margin:48px auto;padding:0 20px}
+    .card{background:#fff;border:1px solid #e4e7ec;border-radius:18px;padding:28px;box-shadow:0 12px 34px rgba(15,23,42,.07)}
+    .eyebrow{font-size:13px;font-weight:800;color:#7c3aed}
+    h1{margin:7px 0 8px;font-size:28px}
+    p{line-height:1.7;color:#5f6b7a}
+    ol{padding-left:22px;line-height:1.85;color:#344054}
+    .bookmarklet{display:inline-flex;align-items:center;justify-content:center;margin:10px 0 4px;padding:14px 20px;border-radius:12px;
+      background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;text-decoration:none;font-weight:850;box-shadow:0 8px 20px rgba(124,58,237,.2);cursor:grab}
+    .note{margin-top:18px;padding:14px 16px;border-radius:12px;background:#f5f3ff;color:#5b21b6;font-size:14px;line-height:1.65}
+    .small{font-size:13px;color:#667085}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <span class="eyebrow">테스트 도구 · v3.0.18</span>
+      <h1>키드키즈몰 장바구니 진단</h1>
+      <p>키드키즈몰 장바구니에서 상품명, 옵션, 수량, 가격, 배송비 구조가 어디에 들어있는지 확인하기 위한 진단용 북마클릿입니다. 진단 정보는 서버로 전송하지 않습니다.</p>
+      <ol>
+        <li>아래 버튼을 크롬 북마크바로 끌어다 놓습니다.</li>
+        <li><b>https://mall.kidkids.net/pani/pages/cart.html</b> 장바구니에서 상품을 1개 이상 체크합니다.</li>
+        <li>가능하면 <b>수량 2개 이상</b>인 상품이나 <b>배송비가 있는 상품</b>도 포함해 주세요.</li>
+        <li>북마크바의 <b>🧪 키드키즈몰 진단</b>을 누릅니다.</li>
+        <li>진단창에서 <b>진단정보 복사</b>를 눌러 이 대화에 붙여 주세요.</li>
+      </ol>
+      <a id="kidkidsDiagnoseBookmarklet" class="bookmarklet" href="#">🧪 키드키즈몰 진단</a>
+      <div class="note">이 페이지는 키드키즈몰 전용입니다. 기존 <b>🛒 딸깍 장바구니</b> 북마클릿은 그대로 두시면 됩니다.</div>
+      <p class="small">상품·수량·가격·배송비 관련 화면 요소만 확인하도록 만들었습니다.</p>
+    </section>
+  </main>
+  <script>
+    (function(){
+      var url = new URL('./kidkids-diagnose.js', location.href).href.split('#')[0].split('?')[0];
+      var code = "javascript:(function(){var old=document.getElementById('ddalkkak-kidkids-diagnose');if(old)old.remove();var s=document.createElement('script');s.id='ddalkkak-kidkids-diagnose';s.src='" + url + "?t='+Date.now();document.head.appendChild(s);})();";
+      document.getElementById('kidkidsDiagnoseBookmarklet').href = code;
+    })();
+  </script>
+</body>
+</html>
