@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.19';
+  var EXTRACTOR_VERSION = '3.0.20';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -377,55 +377,164 @@
 
     var selected = Array.from(document.querySelectorAll('input.chk_cart_id:checked'));
     var shippingGroups = [];
+    var rows = [];
 
+    // 키드키즈몰은 한 상품 안에 여러 옵션이 있어도 숨은 체크박스가 옵션 수만큼 잡힐 수 있다.
+    // 같은 .tr-cart 행은 한 번만 분석한다.
     selected.forEach(function (cb) {
       var row = cb.closest ? cb.closest('.tr-cart') : null;
       if (!row) return;
 
+      if (rows.indexOf(row) === -1) rows.push(row);
+
+      var group = cb.closest ? cb.closest('.table-container') : null;
+      if (group && shippingGroups.indexOf(group) === -1) shippingGroups.push(group);
+    });
+
+    var grouped = {};
+
+    function parseMoney(text) {
+      var m = String(text || '').match(/([\d,]+)\s*원/);
+      return m ? parseInt(m[1].replace(/,/g, ''), 10) : 0;
+    }
+
+    function normalizeSpec(text) {
+      return String(text || '')
+        .replace(/\s*\|?\s*수량\s*:\s*[\d,]+\s*개.*$/,'')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^본품$/,'');
+    }
+
+    function optionPrice(optionText, basePrice) {
+      var text = String(optionText || '');
+
+      var plusMinus = text.match(/([+-])\s*([\d,]+)\s*원/);
+      if (plusMinus) {
+        var delta = parseInt(plusMinus[2].replace(/,/g, ''), 10) || 0;
+        return plusMinus[1] === '-' ? Math.max(0, basePrice - delta) : basePrice + delta;
+      }
+
+      var explicit = text.match(/(?:단가|가격)\s*:?\s*([\d,]+)\s*원/);
+      if (explicit) return parseInt(explicit[1].replace(/,/g, ''), 10) || basePrice;
+
+      return basePrice;
+    }
+
+    function addGrouped(name, price, qty, spec, optionQty, needsReview) {
+      var key = name + '|' + price;
+      if (!grouped[key]) {
+        grouped[key] = {
+          name: name,
+          price: price,
+          qty: 0,
+          options: [],
+          needsReview: false
+        };
+      }
+
+      grouped[key].qty += qty;
+      grouped[key].needsReview = grouped[key].needsReview || Boolean(needsReview);
+
+      grouped[key].options.push({
+        spec: spec,
+        qty: optionQty
+      });
+    }
+
+    rows.forEach(function (row) {
       var info = row.querySelector('.td-info-cart');
-      var option = row.querySelector('.td-cart-option');
       var infoText = (info && info.innerText) || '';
       var rowText = row.innerText || '';
-      var optionText = (option && option.innerText) || '';
 
       var link = info && info.querySelector('a[href*="/html/product.htm"]');
       var linkText = (link && link.innerText) || infoText;
       var name = (linkText.split('\n')[0] || '').trim();
       if (!name) return;
 
-      var unitPriceMatch = linkText.match(/([\d,]+)\s*원/);
-      var unitPrice = unitPriceMatch ? parseInt(unitPriceMatch[1].replace(/,/g, ''), 10) : 0;
+      var basePrice = parseMoney(linkText);
+      if (!basePrice) return;
 
-      var qtyMatch = optionText.match(/수량\s*:\s*([\d,]+)\s*개/);
-      var qty = qtyMatch ? parseInt(qtyMatch[1].replace(/,/g, ''), 10) : 1;
-      if (!Number.isFinite(qty) || qty < 1) qty = 1;
-
-      var spec = optionText
-        .replace(/\|?\s*수량\s*:\s*[\d,]+\s*개.*$/,'')
-        .trim()
-        .replace(/^본품$/,'');
-      if (!unitPrice) {
-        var totalMatchForPrice = rowText.match(/상품금액\s*\n?\s*([\d,]+)\s*원/);
-        var lineTotalForPrice = totalMatchForPrice ? parseInt(totalMatchForPrice[1].replace(/,/g, ''), 10) : 0;
-        unitPrice = lineTotalForPrice && qty ? Math.round(lineTotalForPrice / qty) : 0;
+      var optionBoxes = Array.from(row.querySelectorAll('.td-cart-option .td-container'));
+      if (!optionBoxes.length) {
+        var fallbackOption = row.querySelector('.td-cart-option');
+        if (fallbackOption) optionBoxes = [fallbackOption];
       }
-      if (!unitPrice) return;
 
-      var totalMatch = rowText.match(/상품금액\s*\n?\s*([\d,]+)\s*원/);
-      var lineTotal = totalMatch ? parseInt(totalMatch[1].replace(/,/g, ''), 10) : unitPrice * qty;
-      var needsReview = Boolean(lineTotal && unitPrice * qty !== lineTotal);
+      var parsedOptions = [];
+      optionBoxes.forEach(function (box) {
+        var optionText = (box && box.innerText) || '';
+        var qtyMatch = optionText.match(/수량\s*:\s*([\d,]+)\s*개/);
+        var qty = qtyMatch ? parseInt(qtyMatch[1].replace(/,/g, ''), 10) : 0;
+        if (!Number.isFinite(qty) || qty < 1) return;
 
-      addItem({
-        name: name,
-        spec: spec,
-        unit: '개',
-        qty: qty,
-        price: unitPrice,
-        needsReview: needsReview
+        parsedOptions.push({
+          qty: qty,
+          spec: normalizeSpec(optionText),
+          price: optionPrice(optionText, basePrice)
+        });
       });
 
-      var group = cb.closest ? cb.closest('.table-container') : null;
-      if (group && shippingGroups.indexOf(group) === -1) shippingGroups.push(group);
+      if (!parsedOptions.length) {
+        var qtyFallback = rowText.match(/수량\s*:\s*([\d,]+)\s*개/);
+        var fallbackQty = qtyFallback ? parseInt(qtyFallback[1].replace(/,/g, ''), 10) : 1;
+        parsedOptions.push({ qty: fallbackQty || 1, spec: '', price: basePrice });
+      }
+
+      var displayedTotalMatch = rowText.match(/상품금액\s*\n?\s*([\d,]+)\s*원/);
+      var displayedTotal = displayedTotalMatch
+        ? parseInt(displayedTotalMatch[1].replace(/,/g, ''), 10)
+        : 0;
+      var calculatedTotal = parsedOptions.reduce(function (sum, option) {
+        return sum + option.price * option.qty;
+      }, 0);
+      var rowNeedsReview = Boolean(displayedTotal && calculatedTotal !== displayedTotal);
+
+      parsedOptions.forEach(function (option) {
+        addGrouped(
+          name,
+          option.price,
+          option.qty,
+          option.spec,
+          option.qty,
+          rowNeedsReview
+        );
+      });
+    });
+
+    Object.keys(grouped).forEach(function (key) {
+      var group = grouped[key];
+      var uniqueSpecs = [];
+
+      group.options.forEach(function (option) {
+        if (option.spec && uniqueSpecs.indexOf(option.spec) === -1) uniqueSpecs.push(option.spec);
+      });
+
+      var specSummary = '';
+      if (uniqueSpecs.length === 1) {
+        specSummary = uniqueSpecs[0];
+      } else if (uniqueSpecs.length > 1) {
+        var shown = uniqueSpecs.slice(0, 3);
+        specSummary = shown.join(' / ');
+        if (uniqueSpecs.length > 3) specSummary += ' 외 ' + (uniqueSpecs.length - 3) + '종';
+
+        var optionQtys = group.options.map(function (option) { return option.qty; });
+        var sameQty = optionQtys.every(function (qty) { return qty === optionQtys[0]; });
+        if (sameQty && optionQtys[0] > 0) {
+          specSummary += ' · 각 ' + optionQtys[0] + '개';
+        } else {
+          specSummary += ' · 총 ' + group.qty + '개';
+        }
+      }
+
+      addItem({
+        name: group.name,
+        spec: specSummary,
+        unit: '개',
+        qty: group.qty,
+        price: group.price,
+        needsReview: group.needsReview
+      });
     });
 
     // 키드키즈몰은 판매자 그룹별로 조건부 무료배송을 계산해
