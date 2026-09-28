@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.20';
+  var EXTRACTOR_VERSION = '3.0.21';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -462,23 +462,61 @@
       }
 
       var parsedOptions = [];
-      optionBoxes.forEach(function (box) {
-        var optionText = (box && box.innerText) || '';
-        var qtyMatch = optionText.match(/수량\s*:\s*([\d,]+)\s*개/);
-        var qty = qtyMatch ? parseInt(qtyMatch[1].replace(/,/g, ''), 10) : 0;
-        if (!Number.isFinite(qty) || qty < 1) return;
 
-        parsedOptions.push({
-          qty: qty,
-          spec: normalizeSpec(optionText),
-          price: optionPrice(optionText, basePrice)
-        });
+      function parseOptionBlock(optionText) {
+        var text = String(optionText || '');
+        var found = false;
+        var re = /([\s\S]*?)(?:\|\s*)?수량\s*:\s*([\d,]+)\s*개/g;
+        var match;
+
+        while ((match = re.exec(text)) !== null) {
+          var qty = parseInt(match[2].replace(/,/g, ''), 10);
+          if (!Number.isFinite(qty) || qty < 1) continue;
+
+          var rawSpec = String(match[1] || '')
+            .replace(/^[\s|]+|[\s|]+$/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          parsedOptions.push({
+            qty: qty,
+            spec: normalizeSpec(rawSpec),
+            price: optionPrice(rawSpec, basePrice)
+          });
+          found = true;
+        }
+
+        return found;
+      }
+
+      optionBoxes.forEach(function (box) {
+        parseOptionBlock((box && box.innerText) || '');
       });
 
+      // 일부 키드키즈 상품은 여러 옵션이 하나의 옵션 영역에 이어붙여져
+      // "색상: A | 수량:10개 / 색상:B | 수량:10개"처럼 제공된다.
+      // 위 DOM 단위 분석으로 하나만 잡히는 경우 전체 옵션 텍스트를 다시 훑어
+      // 모든 수량을 합산할 수 있게 한다.
+      var fullOption = row.querySelector('.td-cart-option');
+      if (fullOption) {
+        var fullText = fullOption.innerText || '';
+        var qtyCount = (fullText.match(/수량\s*:\s*[\d,]+\s*개/g) || []).length;
+        if (qtyCount > parsedOptions.length) {
+          parsedOptions = [];
+          parseOptionBlock(fullText);
+        }
+      }
+
       if (!parsedOptions.length) {
-        var qtyFallback = rowText.match(/수량\s*:\s*([\d,]+)\s*개/);
-        var fallbackQty = qtyFallback ? parseInt(qtyFallback[1].replace(/,/g, ''), 10) : 1;
-        parsedOptions.push({ qty: fallbackQty || 1, spec: '', price: basePrice });
+        var qtyFallbacks = Array.from(rowText.matchAll(/수량\s*:\s*([\d,]+)\s*개/g));
+        if (qtyFallbacks.length) {
+          qtyFallbacks.forEach(function (m) {
+            var fallbackQty = parseInt(m[1].replace(/,/g, ''), 10) || 1;
+            parsedOptions.push({ qty: fallbackQty, spec: '', price: basePrice });
+          });
+        } else {
+          parsedOptions.push({ qty: 1, spec: '', price: basePrice });
+        }
       }
 
       var displayedTotalMatch = rowText.match(/상품금액\s*\n?\s*([\d,]+)\s*원/);
