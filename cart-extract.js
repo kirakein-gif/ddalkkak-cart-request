@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var EXTRACTOR_VERSION = '3.0.18';
+  var EXTRACTOR_VERSION = '3.0.19';
   var scriptUrl = (document.currentScript && document.currentScript.src) || '';
   var appUrl = 'https://kirakein-gif.github.io/ddalkkak-cart-request/';
   try {
@@ -372,6 +372,92 @@
     }
   }
 
+  function parseKidkids() {
+    site = '키드키즈몰';
+
+    var selected = Array.from(document.querySelectorAll('input.chk_cart_id:checked'));
+    var shippingGroups = [];
+
+    selected.forEach(function (cb) {
+      var row = cb.closest ? cb.closest('.tr-cart') : null;
+      if (!row) return;
+
+      var info = row.querySelector('.td-info-cart');
+      var option = row.querySelector('.td-cart-option');
+      var infoText = (info && info.innerText) || '';
+      var rowText = row.innerText || '';
+      var optionText = (option && option.innerText) || '';
+
+      var link = info && info.querySelector('a[href*="/html/product.htm"]');
+      var linkText = (link && link.innerText) || infoText;
+      var name = (linkText.split('\n')[0] || '').trim();
+      if (!name) return;
+
+      var unitPriceMatch = linkText.match(/([\d,]+)\s*원/);
+      var unitPrice = unitPriceMatch ? parseInt(unitPriceMatch[1].replace(/,/g, ''), 10) : 0;
+
+      var qtyMatch = optionText.match(/수량\s*:\s*([\d,]+)\s*개/);
+      var qty = qtyMatch ? parseInt(qtyMatch[1].replace(/,/g, ''), 10) : 1;
+      if (!Number.isFinite(qty) || qty < 1) qty = 1;
+
+      var spec = optionText
+        .replace(/\|?\s*수량\s*:\s*[\d,]+\s*개.*$/,'')
+        .trim()
+        .replace(/^본품$/,'');
+      if (!unitPrice) {
+        var totalMatchForPrice = rowText.match(/상품금액\s*\n?\s*([\d,]+)\s*원/);
+        var lineTotalForPrice = totalMatchForPrice ? parseInt(totalMatchForPrice[1].replace(/,/g, ''), 10) : 0;
+        unitPrice = lineTotalForPrice && qty ? Math.round(lineTotalForPrice / qty) : 0;
+      }
+      if (!unitPrice) return;
+
+      var totalMatch = rowText.match(/상품금액\s*\n?\s*([\d,]+)\s*원/);
+      var lineTotal = totalMatch ? parseInt(totalMatch[1].replace(/,/g, ''), 10) : unitPrice * qty;
+      var needsReview = Boolean(lineTotal && unitPrice * qty !== lineTotal);
+
+      addItem({
+        name: name,
+        spec: spec,
+        unit: '개',
+        qty: qty,
+        price: unitPrice,
+        needsReview: needsReview
+      });
+
+      var group = cb.closest ? cb.closest('.table-container') : null;
+      if (group && shippingGroups.indexOf(group) === -1) shippingGroups.push(group);
+    });
+
+    // 키드키즈몰은 판매자 그룹별로 조건부 무료배송을 계산해
+    // 해당 그룹 하단에 "총 배송비"를 표시한다. 선택된 판매자 그룹의
+    // 실제 계산 결과만 한 번씩 합산한다.
+    var shippingTotal = 0;
+    var shippingResolved = true;
+
+    shippingGroups.forEach(function (group) {
+      var gt = group.innerText || '';
+      var match = gt.match(/총\s*배송비\s*\n?\s*([\d,]+)\s*원/);
+      if (match) {
+        shippingTotal += parseInt(match[1].replace(/,/g, ''), 10) || 0;
+      } else {
+        shippingResolved = false;
+      }
+    });
+
+    if (shippingTotal > 0) {
+      addItem({ name: '배송비', unit: '식', qty: 1, price: shippingTotal });
+    } else if (!shippingResolved && selected.length) {
+      addItem({
+        name: '배송비(확인 필요)',
+        spec: '키드키즈몰 최종 배송비 확인',
+        unit: '식',
+        qty: 1,
+        price: 0,
+        needsReview: true
+      });
+    }
+  }
+
   function consolidateShippingItems() {
     var shippingItems = items.filter(function (item) {
       return /배송비/.test(item.name || '');
@@ -405,8 +491,9 @@
     else if (host.includes('11st.co.kr')) parse11st();
     else if (host.includes('ssg.com') || host.includes('emart.com')) parseEmart();
     else if (host.includes('s2b.kr')) parseS2B();
+    else if (host === 'mall.kidkids.net') parseKidkids();
     else {
-      alert('지원하지 않는 쇼핑몰입니다.\n지원: 쿠팡 / G마켓 / 11번가 / 이마트몰 / S2B');
+      alert('지원하지 않는 쇼핑몰입니다.\n지원: 쿠팡 / G마켓 / 11번가 / 이마트몰 / S2B / 키드키즈몰');
       return;
     }
   } catch (error) {
