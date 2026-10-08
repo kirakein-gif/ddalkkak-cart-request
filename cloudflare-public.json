@@ -1,0 +1,25 @@
+{
+  "repo": "ddalkkak-cart-request",
+  "version": "v3.0.21",
+  "files": [
+    "index.html",
+    "assets",
+    "cart-extract.js",
+    "cart.html",
+    "11st-diagnose.html",
+    "11st-diagnose.js",
+    "coupang-diagnose.js",
+    "diagnose.html",
+    "gmarket-diagnose.html",
+    "gmarket-diagnose.js",
+    "kidkids-diagnose.html",
+    "kidkids-diagnose.js",
+    "s2b-diagnose.html",
+    "s2b-diagnose.js",
+    "slider_page.html",
+    "pic1.JPG",
+    "pic2.JPG",
+    "pic3.JPG"
+  ],
+  "publicUrl": "https://ddalkkak-cart-request.pages.dev/"
+}
